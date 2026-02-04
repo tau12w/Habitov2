@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Habit Tracker Pro + Garden</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        /* --- 1. THEME VARIABLES --- */
+        :root {
+            --bg-body: #0B0E14; 
+            --bg-card: #151A23; 
+            --bg-nav: #151A23;
+            --text-main: #FFFFFF;
+            --text-sub: #9CA3AF;
+            --primary: #10B981; 
+            --primary-dim: rgba(16, 185, 129, 0.1);
+            --accent: #8B5CF6; 
+            --danger: #EF4444;
+            --radius: 20px;
+            --font-main: 'Inter', sans-serif;
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        body.theme-light {
+            --bg-body: #F3F4F6;
+            --bg-card: #FFFFFF;
+            --bg-nav: #FFFFFF;
+            --text-main: #1F2937;
+            --text-sub: #6B7280;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- 2. HEADER --- */
+        header { padding: 2rem 1.5rem 0.5rem; z-index: 10; }
+        h1 { font-size: 2rem; font-weight: 800; letter-spacing: -1px; }
+        .subtitle { font-size: 0.95rem; color: var(--text-sub); margin-top: 4px; font-weight: 500; }
+
+        /* --- 3. SCROLL AREA --- */
+        #main-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 1.5rem 7rem;
+            scroll-behavior: smooth;
+        }
+        .view-section { display: none; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- 4. CARDS & UI --- */
+        .habit-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .habit-title { font-size: 1.25rem; font-weight: 700; }
+        
+        .btn-edit {
+            background: rgba(255,255,255,0.05); border: none; width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-sub);
+        }
+
+        .reward-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(245, 158, 11, 0.15); color: #F59E0B;
+            padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
+            margin-bottom: 1rem; letter-spacing: 0.5px;
+        }
+
+        .stats-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.8rem; }
+        .big-stat { font-size: 2.2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+        .big-stat span { font-size: 1.2rem; color: var(--text-sub); font-weight: 600; }
+        .days-left { font-size: 0.9rem; color: var(--text-sub); font-weight: 600; }
+
+        .progress-track { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 1.5rem; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent); border-radius: 10px; width: 0%; transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        .action-area { display: flex; gap: 10px; }
+        .btn-main-action {
+            flex: 1;
+            background: rgba(255,255,255,0.05); color: var(--text-sub); border: none; padding: 14px;
+            border-radius: 14px; font-weight: 700; font-size: 0.95rem; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-main-action.completed {
+            background: var(--primary); color: #000; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        .btn-undo {
+            width: 48px; background: rgba(255,255,255,0.05); border-radius: 14px; border: none;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-sub);
+        }
+
+        /* --- 5. GARDEN & PLANT STYLES --- */
+        .plant-stage { transition: all 1s ease-in-out; transform-origin: bottom center; }
+        
+        /* Growth Bounce Animation */
+        @keyframes growBounce {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .animate-grow { animation: growBounce 0.6s ease-out; }
+
+        /* Wither Animation */
+        @keyframes witherFade {
+            0% { opacity: 1; filter: grayscale(0); }
+            100% { opacity: 0.7; filter: grayscale(0.8); }
+        }
+        .plant-withered path { fill: #8D6E63 !important; stroke: #5D4037 !important; transition: 1s; }
+        
+        /* --- 6. CHARTS & STATS --- */
+        .chart-container {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            height: 150px; background: var(--bg-card); padding: 20px; border-radius: var(--radius);
+            margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.03);
+        }
+        .bar-group { display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; flex: 1; }
+        .bar { width: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; transition: height 0.5s; position: relative; }
+        .bar.active { background: var(--accent); box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
+        .bar-label { font-size: 0.7rem; color: var(--text-sub); }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        .mini-stat-card { background: var(--bg-card); padding: 1.25rem; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.03); }
+        .mini-label { font-size: 0.75rem; color: var(--text-sub); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .mini-value { font-size: 1.75rem; font-weight: 800; color: var(--text-main); }
+
+        /* --- 7. NAVIGATION --- */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: var(--bg-nav);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-around;
+            padding: 10px 0 calc(10px + var(--safe-area-bottom));
+            z-index: 100;
+        }
+        .nav-item {
+            background: none; border: none;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            color: var(--text-sub); cursor: pointer; width: 20%; 
+        }
+        .nav-item svg { width: 24px; height: 24px; fill: currentColor; transition: fill 0.2s; }
+        .nav-label { font-size: 0.65rem; font-weight: 600; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item.active svg { fill: var(--primary); }
+
+        .fab {
+            position: fixed; bottom: calc(5rem + var(--safe-area-bottom)); right: 1.5rem;
+            background: var(--accent); color: white; width: 56px; height: 56px; border-radius: 50%;
+            border: none; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4); cursor: pointer; z-index: 90;
+        }
+        .fab svg { width: 28px; height: 28px; fill: white; }
+
+        /* --- 8. MODALS & CALENDAR --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 200;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            display: flex; align-items: flex-end;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-sheet {
+            background: var(--bg-card); width: 100%; border-radius: 24px 24px 0 0; padding: 2rem;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .modal-overlay.open .modal-sheet { transform: translateY(0); }
+
+        input {
+            width: 100%; padding: 16px; margin-bottom: 1rem;
+            background: var(--bg-body); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; color: white; font-size: 1rem; outline: none;
+        }
+        input:focus { border-color: var(--accent); }
+        .btn-block { width: 100%; padding: 16px; border-radius: 14px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-danger { background: rgba(239,68,68,0.2); color: var(--danger); margin-top: 10px; }
+
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; }
+        .cal-day-name { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px; }
+        .cal-day {
+            aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; font-weight: 600; border-radius: 10px;
+            background: rgba(255,255,255,0.03); color: var(--text-sub);
+        }
+        .cal-day.active { background: var(--primary); color: #000; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
+        
+        /* Achievement List */
+        .achievement-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 8px;
+        }
+        .ach-icon { font-size: 1.5rem; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="page-title">Your Habits</h1>
+        <div class="subtitle" id="current-date">Fetching date...</div>
+    </header>
+
+    <div id="main-container">
+        
+        <div id="view-habits" class="view-section active">
+            <div id="habit-list"></div>
+        </div>
+
+        <div id="view-insights" class="view-section">
+            <h3 style="margin-bottom:1rem; font-size:1.1rem;">Weekly Performance</h3>
+            <div class="chart-container" id="weekly-chart"></div>
+            
+            <div class="stats-grid">
+                <div class="mini-stat-card">
+                    <div class="mini-label">Completion Rate</div>
+                    <div class="mini-value" id="stat-rate">0%</div>
+                </div>
+                <div class="mini-stat-card">
+                    <div class="mini-label">Active Habits</div>
+                    <div class="mini-value" id="stat-active">0</div>
+                </div>
+                <div class="mini-stat-card">
+                    <div class="mini-label">Total Completed</div>
+                    <div class="mini-value" id="stat-total">0</div>
+                </div>
+                <div class="mini-stat-card">
+                    <div class="mini-label">Best Streak</div>
+                    <div class="mini-value" id="stat-best">0</div>
+                </div>
+            </div>
+
+            <div class="habit-card" style="margin-top:20px;">
+                <div class="card-header"><span class="habit-title">🏆 Hall of Achievements</span></div>
+                <div id="achievements-list" style="max-height: 250px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <div id="view-garden" class="view-section">
+            <div class="habit-card" style="text-align: center; padding: 3rem 1rem;">
+                <div class="card-header" style="justify-content: center; margin-bottom: 2rem;">
+                    <span class="habit-title">Your Habit Garden</span>
+                </div>
+                
+                <div id="plant-container" style="position: relative; width: 150px; height: 150px; margin: 0 auto;">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M30 80 L35 95 H65 L70 80 H30 Z" fill="#8D6E63" stroke="#5D4037" stroke-width="2"/>
+                        <rect x="25" y="75" width="50" height="8" rx="2" fill="#A1887F" stroke="#5D4037" stroke-width="2"/>
+                        
+                        <g id="plant-stage-0" class="plant-stage" style="opacity:1"> <circle cx="50" cy="75" r="3" fill="#8D6E63"/>
+                        </g>
+                        <g id="plant-stage-1" class="plant-stage" style="opacity:0"> <path d="M50 75 Q50 60 50 55" stroke="#4CAF50" stroke-width="3" stroke-linecap="round"/>
+                            <ellipse cx="45" cy="55" rx="5" ry="3" fill="#66BB6A" transform="rotate(-30 45 55)"/>
+                            <ellipse cx="55" cy="55" rx="5" ry="3" fill="#66BB6A" transform="rotate(30 55 55)"/>
+                        </g>
+                        <g id="plant-stage-2" class="plant-stage" style="opacity:0"> <path d="M50 75 Q50 50 50 35" stroke="#388E3C" stroke-width="3" stroke-linecap="round"/>
+                            <path d="M50 60 Q30 50 35 40" stroke="#4CAF50" stroke-width="2" fill="none"/>
+                            <path d="M50 50 Q70 40 65 30" stroke="#4CAF50" stroke-width="2" fill="none"/>
+                            <circle cx="35" cy="40" r="4" fill="#66BB6A"/>
+                            <circle cx="65" cy="30" r="4" fill="#66BB6A"/>
+                        </g>
+                        <g id="plant-stage-3" class="plant-stage" style="opacity:0"> <path d="M50 75 Q60 50 50 20" stroke="#2E7D32" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M50 55 Q30 45 25 35" stroke="#388E3C" stroke-width="2" fill="none"/>
+                            <path d="M50 40 Q80 30 85 25" stroke="#388E3C" stroke-width="2" fill="none"/>
+                            <ellipse cx="25" cy="35" rx="8" ry="4" fill="#43A047" transform="rotate(-20)"/>
+                            <ellipse cx="85" cy="25" rx="8" ry="4" fill="#43A047" transform="rotate(20)"/>
+                            <circle cx="50" cy="20" r="8" fill="#FF7043"/> </g>
+                    </svg>
+                </div>
+
+                <h2 id="garden-status" style="margin-top: 1rem; color: var(--primary);">Sprout</h2>
+                <p id="garden-desc" style="color: var(--text-sub); font-size: 0.9rem; margin-top: 0.5rem;">
+                    Keep your streaks to help me grow!
+                </p>
+                <div class="stats-row" style="margin-top: 2rem; padding: 0 1rem;">
+                    <div style="text-align: left;">
+                        <div class="mini-label">Global Health</div>
+                        <div class="big-stat" id="plant-health">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-calendar" class="view-section">
+            <div class="habit-card">
+                <div class="card-header">
+                    <span class="habit-title">Monthly Heatmap</span>
+                    <span style="font-size:0.9rem; color:var(--text-sub);" id="cal-month"></span>
+                </div>
+                <div class="calendar-grid" id="calendar-grid"></div>
+            </div>
+            <h3 style="margin: 1rem 0 0.5rem;">Activity Log</h3>
+            <div id="history-log" style="font-size:0.9rem; color:var(--text-sub);"></div>
+        </div>
+
+        <div id="view-settings" class="view-section">
+            <div class="habit-card">
+                <div class="card-header"><span class="habit-title">Appearance</span></div>
+                <button class="btn-block" style="background:var(--bg-body); color:white; margin-bottom:10px;" onclick="toggleTheme()">
+                    Switch Theme (Light/Dark)
+                </button>
+            </div>
+            <div class="habit-card">
+                <div class="card-header"><span class="habit-title">Data</span></div>
+                <button class="btn-block btn-danger" onclick="clearData()">Reset All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <button class="fab" onclick="openModal('add')">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    </button>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('habits', this)">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span class="nav-label">Home</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('insights', this)">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            <span class="nav-label">Insights</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('garden', this)">
+            <svg viewBox="0 0 24 24"><path d="M12 22c4.97 0 9-4.03 9-9-4.5 0-9-4.5-9-9 0 4.5-4.5 9-9 9 0 4.97 4.03 9 9 9z"/></svg>
+            <span class="nav-label">Garden</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('calendar', this)">
+            <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+            <span class="nav-label">Calendar</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('settings', this)">
+            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            <span class="nav-label">Settings</span>
+        </button>
+    </nav>
+
+    <div class="modal-overlay" id="habit-modal">
+        <div class="modal-sheet">
+            <h2 id="modal-title" style="margin-bottom:1.5rem;">New Habit</h2>
+            <input type="hidden" id="habit-id">
+            <label style="color:var(--text-sub); font-size:0.8rem; margin-bottom:5px; display:block;">Habit Name</label>
+            <input type="text" id="habit-name" placeholder="e.g. Wake up 5am">
+            <label style="color:var(--text-sub); font-size:0.8rem; margin-bottom:5px; display:block;">Target (Days)</label>
+            <input type="number" id="habit-target" value="7">
+            <label style="color:var(--text-sub); font-size:0.8rem; margin-bottom:5px; display:block;">Reward (Optional)</label>
+            <input type="text" id="habit-reward" placeholder="e.g. New Game">
+            <button class="btn-block btn-primary" onclick="saveHabit()">Save Habit</button>
+            <button class="btn-block btn-danger" id="btn-delete" style="display:none;" onclick="deleteHabit()">Delete Habit</button>
+            <button class="btn-block" style="background:none; color:var(--text-sub); margin-top:10px;" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="success-modal">
+        <div class="modal-sheet" style="text-align:center;">
+            <div style="font-size:3rem; margin-bottom:10px;">🏆</div>
+            <h2 style="color: var(--primary);">Goal Crushed!</h2>
+            <p id="success-msg" style="color:var(--text-sub); margin:10px 0 20px;">Habit completed and moved to Hall of Fame.</p>
+            <button class="btn-block btn-primary" onclick="closeSuccessModal()">Awesome!</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA STRUCTURE & LOGIC ---
+        const DB = {
+            habits: [],
+            history: [],
+            achievements: [],
+            firstUse: null
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            // Set first use date if new
+            if(!DB.firstUse) {
+                DB.firstUse = getTodayStr();
+                saveData();
+            }
+            renderAll();
+            setupDates();
+        });
+
+        function setupDates() {
+            const date = new Date();
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            document.getElementById('current-date').textContent = date.toLocaleDateString('en-US', options);
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('habito_pro_db_v2');
+            if(saved) {
+                const parsed = JSON.parse(saved);
+                DB.habits = parsed.habits || [];
+                DB.history = parsed.history || [];
+                // Migration: Ensure achievements have habitId field if missing
+                DB.achievements = (parsed.achievements || []).map(a => ({...a, habitId: a.habitId || null, id: a.id || a.title.replace(/\s/g,'')}));
+                DB.firstUse = parsed.firstUse || null;
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('habito_pro_db_v2', JSON.stringify(DB));
+        }
+
+        function getTodayStr() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function calculateStreak(habitId) {
+            const dates = DB.history.filter(h => h.id === habitId).map(h => h.date).sort();
+            if(dates.length === 0) return 0;
+
+            const today = getTodayStr();
+            const oneDay = 86400000;
+            
+            // Check if done today or yesterday
+            const lastDate = new Date(dates[dates.length - 1]);
+            const diff = (new Date(today) - lastDate) / oneDay;
+            if (Math.floor(diff) > 1) return 0; // Streak broken
+
+            let streak = 1;
+            for(let i = dates.length - 2; i >= 0; i--) {
+                const curr = new Date(dates[i]);
+                const next = new Date(dates[i+1]);
+                const dDiff = (next - curr) / oneDay;
+                if(dDiff === 1) streak++;
+                else break;
+            }
+            return streak;
+        }
+
+        // --- CORE ACTIONS ---
+
+        function toggleComplete(id) {
+            const today = getTodayStr();
+            const habit = DB.habits.find(h => h.id === id);
+            const isDone = DB.history.some(h => h.id === id && h.date === today);
+
+            if(isDone) {
+                // UNDO ACTION
+                DB.history = DB.history.filter(h => !(h.id === id && h.date === today));
+                
+                // FIX: Check if we need to remove streak achievements that are no longer valid
+                const newStreak = calculateStreak(id);
+                removeInvalidStreakAchievements(id, newStreak);
+            } else {
+                // DO ACTION
+                // Check Resumption Logic (Back on Track / Never Too Late)
+                checkResumption(id, today);
+                
+                DB.history.push({ id: id, date: today, name: habit.name });
+                
+                const streak = calculateStreak(id);
+                // Auto Archive logic
+                if(streak >= habit.target) {
+                    completeHabit(habit);
+                    return; 
+                }
+            }
+            saveData();
+            checkGlobalAchievements(id); // Check all achievements
+            renderAll();
+        }
+
+        function checkResumption(id, today) {
+            const dates = DB.history.filter(h => h.id === id).map(h => h.date).sort();
+            if(dates.length > 0) {
+                const lastDate = new Date(dates[dates.length - 1]);
+                const todayDate = new Date(today);
+                const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+                
+                if(diffDays === 2) {
+                    unlockAchievement('Back on Track', 'Resume after missing a day', '🛤️', id);
+                } else if (diffDays >= 4) {
+                    unlockAchievement('Never Too Late', 'Resume after missing 3+ days', '🌅', id);
+                }
+            }
+        }
+
+        function completeHabit(habit) {
+            unlockAchievement(`COMPLETED: ${habit.name}`, 'Finished a habit target', '🏆', habit.id);
+            DB.habits = DB.habits.filter(h => h.id !== habit.id);
+            saveData();
+            renderAll();
+            document.getElementById('success-msg').textContent = `You finished '${habit.name}'!`;
+            document.getElementById('success-modal').classList.add('open');
+        }
+
+        function saveHabit() {
+            const id = document.getElementById('habit-id').value;
+            const name = document.getElementById('habit-name').value;
+            const target = parseInt(document.getElementById('habit-target').value) || 7;
+            const reward = document.getElementById('habit-reward').value;
+
+            if(!name) return;
+
+            if(id) {
+                const h = DB.habits.find(x => x.id === id);
+                h.name = name; h.target = target; h.reward = reward;
+            } else {
+                DB.habits.push({ id: Date.now().toString(), name, target, reward });
+            }
+            saveData();
+            checkGlobalAchievements(); // Check for Planner/Routine builder
+            closeModal();
+            renderAll();
+        }
+
+        function deleteHabit() {
+            const id = document.getElementById('habit-id').value;
+            DB.habits = DB.habits.filter(h => h.id !== id);
+            
+            // FIX: Remove history when deleting habit so stats are clean
+            DB.history = DB.history.filter(h => h.id !== id);
+            
+            saveData();
+            closeModal();
+            renderAll();
+        }
+
+        // --- ACHIEVEMENT SYSTEM (NEW) ---
+        
+        function unlockAchievement(title, desc, icon, habitId = null) {
+            // Check if already exists (prevent dupes for unique ones)
+            const exists = DB.achievements.some(a => a.title === title && (a.habitId === habitId || a.habitId === null));
+            // For milestones like "Streak Starter", we want them unique per habit
+            if(!exists) {
+                DB.achievements.push({
+                    id: Date.now().toString() + Math.random(),
+                    title, desc, icon, date: getTodayStr(), habitId
+                });
+            }
+        }
+
+        function removeInvalidStreakAchievements(habitId, currentStreak) {
+            // If we undo a habit, we might lose a streak badge.
+            // We filter out achievements that belong to THIS habit AND demand a higher streak than we currently have.
+            const thresholds = {
+                'Streak Starter': 3,
+                'On a Roll': 7,
+                'Double Digits': 10,
+                'Two-Week Discipline': 14,
+                'Habit Forming': 21,
+                'Unbreakable': 30
+            };
+
+            DB.achievements = DB.achievements.filter(a => {
+                if (a.habitId !== habitId) return true; // Keep other habits' badges
+                if (thresholds[a.title] && currentStreak < thresholds[a.title]) {
+                    return false; // Remove this badge
+                }
+                return true;
+            });
+        }
+
+        function checkGlobalAchievements(currentHabitId = null) {
+            const habitCount = DB.habits.length;
+            
+            // 1. Planner Mindset (3 habits)
+            if(habitCount >= 3) unlockAchievement('Planner Mindset', 'Added 3 habits', '📝');
+            
+            // 2. Routine Builder (5 habits)
+            if(habitCount >= 5) unlockAchievement('Routine Builder', 'Added 5 habits', '🏗️');
+
+            // Streaks (Check specifically for the habit that changed, or all)
+            const habitsToCheck = currentHabitId ? DB.habits.filter(h => h.id === currentHabitId) : DB.habits;
+            
+            habitsToCheck.forEach(h => {
+                const s = calculateStreak(h.id);
+               // --- ADD THIS LINE HERE ---
+                 if(habitCount >= 1) unlockAchievement('First Step', 'Added your first habit', '🌱');
+                // 3-8 Streak Achievements
+                if(s >= 3) unlockAchievement('Streak Starter', '3-day streak', '🔥', h.id);
+                if(s >= 7) unlockAchievement('On a Roll', '7-day streak', '🎲', h.id);
+                if(s >= 10) unlockAchievement('Double Digits', '10-day streak', '🔟', h.id);
+                if(s >= 14) unlockAchievement('Two-Week Discipline', '14-day streak', '⚔️', h.id);
+                if(s >= 21) unlockAchievement('Habit Forming', '21-day streak', '🧠', h.id);
+                if(s >= 30) unlockAchievement('Unbreakable', '30-day streak', '💎', h.id);
+            });
+
+            // 11. Perfect Week (All habits done for 7 days)
+            // Logic: Check last 7 days. If for every day, history count >= current habit count. (Approx)
+            let perfectWeek = true;
+            if(DB.habits.length > 0) {
+                for(let i=0; i<7; i++) {
+                    const d = new Date(); d.setDate(d.getDate() - i);
+                    const dStr = d.toISOString().split('T')[0];
+                    const count = DB.history.filter(h => h.date === dStr).length;
+                    if(count < DB.habits.length) { perfectWeek = false; break; }
+                }
+                if(perfectWeek) unlockAchievement('Perfect Week', 'Completed all habits for 7 days', '🌟');
+            }
+
+            // 12. Consistency Over Intensity (80% completion in a week)
+            checkConsistency(7, 'Consistency Over Intensity', '📈');
+
+            // 13. Quiet Progress (80% completion for 4 weeks)
+            checkConsistency(28, 'Quiet Progress', '🦉');
+
+            // 14. One-Year Strong
+            if(DB.firstUse) {
+                const first = new Date(DB.firstUse);
+                const now = new Date();
+                const diffTime = Math.abs(now - first);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                if(diffDays >= 365) unlockAchievement('One-Year Strong', 'Used app for 365 days', '🏅');
+            }
+        }
+
+        function checkConsistency(days, title, icon) {
+            if(DB.habits.length === 0) return;
+            let totalPossible = DB.habits.length * days;
+            let totalDone = 0;
+            for(let i=0; i<days; i++) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const dStr = d.toISOString().split('T')[0];
+                totalDone += DB.history.filter(h => h.date === dStr).length;
+            }
+            if(totalPossible > 0 && (totalDone/totalPossible) >= 0.8) {
+                unlockAchievement(title, `80% completion for ${days} days`, icon);
+            }
+        }
+
+        // --- RENDERING ---
+
+        function renderAll() {
+            const list = document.getElementById('habit-list');
+            list.innerHTML = '';
+            const today = getTodayStr();
+
+            if(DB.habits.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-sub); opacity:0.6;">
+                    <h2>No active habits</h2><p>Tap + to start a new goal</p>
+                </div>`;
+            }
+
+            DB.habits.forEach(h => {
+                const streak = calculateStreak(h.id);
+                const isDone = DB.history.some(x => x.id === h.id && x.date === today);
+                const progressPct = (streak / h.target) * 100;
+                
+                const html = `
+                <div class="habit-card">
+                    <div class="card-header">
+                        <span class="habit-title">${h.name}</span>
+                        <button class="btn-edit" onclick="openEdit('${h.id}')">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        </button>
+                    </div>
+                    ${h.reward ? `<div class="reward-badge">🎁 ${h.reward}</div>` : ''}
+                    <div class="stats-row">
+                        <div class="big-stat">${streak} <span>/ ${h.target}</span></div>
+                        <div class="days-left">${Math.max(0, h.target - streak)} days left</div>
+                    </div>
+                    <div class="progress-track"><div class="progress-fill" style="width: ${progressPct}%"></div></div>
+                    <div class="action-area">
+                        <button class="btn-main-action ${isDone ? 'completed' : ''}" onclick="toggleComplete('${h.id}')">
+                            ${isDone ? 'Completed Today' : 'Mark Complete'} ${isDone ? '🎉' : ''}
+                        </button>
+                        ${isDone ? `<button class="btn-undo" onclick="toggleComplete('${h.id}')">↩️</button>` : ''}
+                    </div>
+                </div>`;
+                list.innerHTML += html;
+            });
+            
+            renderInsights();
+            renderGarden();
+            renderCalendar();
+        }
+
+        function renderInsights() {
+            // 1. Weekly Chart
+            const chart = document.getElementById('weekly-chart');
+            chart.innerHTML = '';
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            const today = new Date();
+            
+            let last7DaysCount = 0; 
+
+            for(let i=6; i>=0; i--) {
+                const d = new Date();
+                d.setDate(today.getDate() - i);
+                const dStr = d.toISOString().split('T')[0];
+                const count = DB.history.filter(h => h.date === dStr).length;
+                last7DaysCount += count;
+                const height = Math.min(100, count * 20) + '%';
+                
+                chart.innerHTML += `
+                    <div class="bar-group">
+                        <div class="bar ${count>0?'active':''}" style="height:${height}"></div>
+                        <div class="bar-label">${days[d.getDay()].substring(0,1)}</div>
+                    </div>
+                `;
+            }
+
+            // 2. Stats
+            const total = DB.history.length;
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-active').innerText = DB.habits.length;
+            
+            const possible = DB.habits.length * 7; 
+            const rate = possible > 0 ? Math.round((last7DaysCount / possible) * 100) : 0;
+            document.getElementById('stat-rate').innerText = rate + "%";
+
+            let bestStreak = 0;
+            DB.habits.forEach(h => {
+                const s = calculateStreak(h.id);
+                if(s > bestStreak) bestStreak = s;
+            });
+            document.getElementById('stat-best').innerText = bestStreak;
+
+            // 3. Achievements
+            const achList = document.getElementById('achievements-list');
+            achList.innerHTML = '';
+            // Show new first
+            DB.achievements.slice().reverse().forEach(a => {
+                achList.innerHTML += `
+                    <div class="achievement-item">
+                        <div class="ach-icon">${a.icon}</div>
+                        <div>
+                            <div style="font-weight:700; font-size:0.9rem">${a.title}</div>
+                            <div style="font-size:0.75rem; color:var(--text-sub)">${a.desc ? a.desc + ' • ' : ''}${a.date}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            if(DB.achievements.length === 0) {
+                achList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-sub); font-size:0.8rem;">No achievements yet. Keep going!</div>`;
+            }
+        }
+
+        // --- GARDEN LOGIC ---
+        function renderGarden() {
+            let totalPotential = 0;
+            let totalCurrent = 0;
+            
+            if(DB.habits.length === 0) {
+                totalCurrent = 0;
+            } else {
+                DB.habits.forEach(h => {
+                    totalPotential += h.target;
+                    totalCurrent += calculateStreak(h.id);
+                });
+            }
+
+            let health = totalPotential > 0 ? (totalCurrent / totalPotential) * 100 : 0;
+            if(health > 100) health = 100;
+            
+            document.getElementById('plant-health').innerText = Math.round(health) + "%";
+            
+            const stages = [
+                document.getElementById('plant-stage-0'),
+                document.getElementById('plant-stage-1'),
+                document.getElementById('plant-stage-2'),
+                document.getElementById('plant-stage-3')
+            ];
+            
+            stages.forEach(s => s.style.opacity = '0');
+            const statusText = document.getElementById('garden-status');
+            const descText = document.getElementById('garden-desc');
+
+            if(health < 10) {
+                stages[0].style.opacity = '1'; 
+                statusText.innerText = "Dormant Seed";
+                descText.innerText = "Start a streak to see me sprout!";
+            } else if (health < 40) {
+                stages[1].style.opacity = '1'; 
+                statusText.innerText = "Tiny Sprout";
+                descText.innerText = "I'm growing! Keep going.";
+            } else if (health < 80) {
+                stages[2].style.opacity = '1'; 
+                statusText.innerText = "Healthy Fern";
+                descText.innerText = "Look at those leaves!";
+            } else {
+                stages[3].style.opacity = '1'; 
+                statusText.innerText = "Full Bloom";
+                descText.innerText = "You are unstoppable!";
+            }
+
+             document.getElementById('plant-container').classList.add('animate-grow');
+             setTimeout(() => document.getElementById('plant-container').classList.remove('animate-grow'), 600);
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            const date = new Date();
+            document.getElementById('cal-month').innerText = date.toLocaleDateString('en-US', {month:'long', year:'numeric'});
+            
+            const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+
+            ['S','M','T','W','T','F','S'].forEach(d => grid.innerHTML+=`<div class="cal-day-name">${d}</div>`);
+            for(let i=0; i<firstDay; i++) grid.innerHTML+=`<div></div>`;
+
+            for(let i=1; i<=daysInMonth; i++) {
+                const dStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const active = DB.history.some(h => h.date === dStr);
+                grid.innerHTML += `<div class="cal-day ${active?'active':''}">${i}</div>`;
+            }
+
+            const log = document.getElementById('history-log');
+            log.innerHTML = DB.history.slice().reverse().slice(0,10).map(h => 
+                `<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);">${h.date}: Completed <b>${h.name}</b></div>`
+            ).join('');
+        }
+
+        // --- UTILS ---
+        window.switchTab = (viewId, btn) => {
+            document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active'));
+            document.getElementById('view-'+viewId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('page-title').innerText = 
+                viewId === 'habits' ? 'Your Habits' : 
+                viewId === 'insights' ? 'Insights' : 
+                viewId === 'garden' ? 'My Garden' : 
+                viewId === 'calendar' ? 'History' : 'Settings';
+        }
+
+        window.openModal = (type) => {
+            if(type === 'add') {
+                document.getElementById('habit-id').value = '';
+                document.getElementById('habit-name').value = '';
+                document.getElementById('habit-target').value = 7;
+                document.getElementById('habit-reward').value = '';
+                document.getElementById('modal-title').innerText = 'New Habit';
+                document.getElementById('btn-delete').style.display = 'none';
+                document.getElementById('habit-modal').classList.add('open');
+            }
+        };
+
+        window.openEdit = (id) => {
+            const h = DB.habits.find(x => x.id === id);
+            document.getElementById('habit-id').value = id;
+            document.getElementById('habit-name').value = h.name;
+            document.getElementById('habit-target').value = h.target;
+            document.getElementById('habit-reward').value = h.reward;
+            document.getElementById('modal-title').innerText = 'Edit Habit';
+            document.getElementById('btn-delete').style.display = 'block';
+            document.getElementById('habit-modal').classList.add('open');
+        }
+
+        window.closeModal = () => document.getElementById('habit-modal').classList.remove('open');
+        window.closeSuccessModal = () => {
+            document.getElementById('success-modal').classList.remove('open');
+            switchTab('insights', document.querySelectorAll('.nav-item')[1]);
+        };
+        window.toggleTheme = () => document.body.classList.toggle('theme-light');
+        window.clearData = () => {
+            if(confirm('Reset everything?')) {
+                localStorage.removeItem('habito_pro_db_v2');
+                location.reload();
+            }
+        };
+    </script>
+</body>
+</html>
+
